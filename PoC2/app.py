@@ -266,6 +266,21 @@ def deterministic_local_answer(question: str) -> str | None:
     q = question.replace(" ", "").lower()
     con = duckdb.connect(str(db), read_only=True)
     try:
+        if ("3분기" in q or "3q" in q) and ("top5" in q or "top 5" in question.lower() or "상위5" in q or "가장큰지역" in q) and ("숏" in q or "short" in q):
+            rows = con.execute(
+                """
+                SELECT region_entity, CAST(value AS BIGINT) AS short_value
+                FROM psi_long
+                WHERE period='3분기' AND metric='Short' AND comparison=''
+                  AND psi_model_26='Total' AND region_entity <> 'Total'
+                ORDER BY value DESC
+                LIMIT 5
+                """
+            ).fetchall()
+            lines = ["3분기 Short가 가장 큰 지역 Top 5입니다.", ""]
+            lines.extend(f"{i}. {region}: {fmt_num(value)}대" for i, (region, value) in enumerate(rows, 1))
+            return "\n".join(lines)
+
         if "유럽" in q and "플래그십" in q and ("숏" in q or "short" in q):
             total = con.execute(
                 """

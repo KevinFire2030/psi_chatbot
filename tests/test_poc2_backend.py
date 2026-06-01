@@ -99,6 +99,13 @@ class Poc2BackendTests(unittest.TestCase):
         self.assertIn("Short-Ch_Constraint: 1,185,642대", answer)
         self.assertIn("전주비: -285,032대", answer)
 
+    def test_q3_short_top5_fallback_query(self):
+        answer = deterministic_local_answer("3분기 Short가 가장 큰 지역 Top 5 보여줘")
+        self.assertIsNotNone(answer)
+        assert answer is not None
+        self.assertIn("1. Latin America: 3,668,584대", answer)
+        self.assertIn("5. SELA: 1,271,879대", answer)
+
 
 if __name__ == "__main__":
     unittest.main()
