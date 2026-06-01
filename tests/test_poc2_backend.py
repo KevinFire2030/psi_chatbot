@@ -75,6 +75,21 @@ class Poc2BackendTests(unittest.TestCase):
                 "죄송합니다. 현재 세션에는 터미널/파일 조회 도구가 제공되지 않아 실제 조회할 수 없습니다."
             )
         )
+        self.assertTrue(
+            is_unusable_hermes_answer(
+                "현재 세션에는 DuckDB를 실제 조회할 수 있는 터미널/DB 실행 도구가 제공되지 않아 psi_long 테이블 조회를 수행할 수 없습니다."
+            )
+        )
+        self.assertTrue(
+            is_unusable_hermes_answer(
+                "현재 세션에서 DuckDB를 조회할 terminal 도구가 제공되지 않아 psi_long 실제 조회를 수행할 수 없습니다."
+            )
+        )
+        self.assertTrue(
+            is_unusable_hermes_answer(
+                "죄송합니다. 현재 세션에는 DuckDB를 직접 조회할 수 있는 터미널 실행 도구가 연결되어 있지 않아, `psi_long` 실제 조회 결과를 확인할 수 없습니다."
+            )
+        )
         self.assertFalse(is_unusable_hermes_answer("사업부 2분기 채널 Short는 1,185,642대입니다."))
 
     def test_channel_short_fallback_query(self):

@@ -185,7 +185,18 @@ def is_unusable_hermes_answer(answer: str) -> bool:
     normalized = answer.lower()
     failure_markers = [
         "터미널/파일 조회 도구가 제공되지",
+        "terminal 도구가 제공되지",
+        "terminal/db 실행 도구가 제공되지",
+        "db 실행 도구가 제공되지",
+        "duckdb를 실제 조회할 수",
+        "duckdb를 직접 조회할 수",
+        "duckdb를 조회할",
+        "터미널 실행 도구가 연결되어 있지",
+        "psi_long 실제 조회",
+        "실제 조회 결과를 확인할 수 없습니다",
+        "실제 조회를 수행할 수 없습니다",
         "실제 조회할 수 없습니다",
+        "조회 도구가 제공되지",
         "다시 요청해 주시면",
         "api call failed",
         "rate limited",
