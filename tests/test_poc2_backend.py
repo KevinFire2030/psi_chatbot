@@ -6,7 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from PoC2.app import find_session_for_request, latest_final_assistant_message, sign_body
+from PoC2.app import (
+    deterministic_local_answer,
+    find_session_for_request,
+    is_unusable_hermes_answer,
+    latest_final_assistant_message,
+    sign_body,
+)
 
 
 class Poc2BackendTests(unittest.TestCase):
@@ -62,6 +68,21 @@ class Poc2BackendTests(unittest.TestCase):
             self.assertEqual(find_session_for_request(conn, "poc2-abc"), "s1")
             self.assertEqual(latest_final_assistant_message(conn, "s1"), "최종 답변입니다")
             conn.close()
+
+    def test_detects_unusable_hermes_tool_apology(self):
+        self.assertTrue(
+            is_unusable_hermes_answer(
+                "죄송합니다. 현재 세션에는 터미널/파일 조회 도구가 제공되지 않아 실제 조회할 수 없습니다."
+            )
+        )
+        self.assertFalse(is_unusable_hermes_answer("사업부 2분기 채널 Short는 1,185,642대입니다."))
+
+    def test_channel_short_fallback_query(self):
+        answer = deterministic_local_answer("사업부 2분기 채널숏 알려줘")
+        self.assertIsNotNone(answer)
+        assert answer is not None
+        self.assertIn("Short-Ch_Constraint: 1,185,642대", answer)
+        self.assertIn("전주비: -285,032대", answer)
 
 
 if __name__ == "__main__":

@@ -165,12 +165,34 @@ def latest_final_assistant_message(conn: sqlite3.Connection, session_id: str) ->
         """,
         (session_id,),
     ).fetchall()
+
     final: str | None = None
     for role, content, tool_calls in rows:
         # Tool-calling assistant placeholders have empty content and non-empty tool calls.
         if role == "assistant" and content and not tool_calls:
             final = str(content)
     return final
+
+
+def is_unusable_hermes_answer(answer: str) -> bool:
+    """Return True when Hermes replied but clearly did not answer the PSI query.
+
+    Webhook agent sessions can occasionally run without terminal/file tools or hit
+    provider limits. In those cases the final text is an apology/error, not a data
+    answer, so PoC2 should fall through to its deterministic DuckDB demo path.
+    """
+
+    normalized = answer.lower()
+    failure_markers = [
+        "터미널/파일 조회 도구가 제공되지",
+        "실제 조회할 수 없습니다",
+        "다시 요청해 주시면",
+        "api call failed",
+        "rate limited",
+        "usage limit",
+        "no final assistant response",
+    ]
+    return any(marker in normalized for marker in failure_markers)
 
 
 async def wait_for_hermes_answer(request_id: str, timeout_seconds: int) -> tuple[str, str | None, str]:
@@ -306,6 +328,30 @@ def deterministic_local_answer(question: str) -> str | None:
             lines.append(f"법인별 합계는 {fmt_num(sum(v for _, v in rows))}대입니다.")
             return "\n".join(lines)
 
+        if "사업부" in q and ("채널숏" in q or "채널short" in q or "channelshort" in q or "short-ch" in q or "constraint" in q):
+            value = con.execute(
+                """
+                SELECT value FROM psi_long
+                WHERE period='2분기' AND metric='Short-Ch_Constraint' AND comparison=''
+                  AND business_unit='사업부' AND region_entity='Total' AND psi_model_26='Total'
+                """
+            ).fetchone()[0]
+            wow = con.execute(
+                """
+                SELECT value FROM psi_long
+                WHERE period='2분기' AND metric='Short-Ch_Constraint' AND comparison='전주比'
+                  AND business_unit='사업부' AND region_entity='Total' AND psi_model_26='Total'
+                """
+            ).fetchone()[0]
+            return "\n".join(
+                [
+                    "사업부 2분기 채널 Short 현황입니다.",
+                    "",
+                    f"- 2분기 Short-Ch_Constraint: {fmt_num(value)}대",
+                    f"- 전주비: {fmt_num(wow)}대",
+                ]
+            )
+
         if "사업부" in q and "fp" in q and "매출" in q:
             value = con.execute(
                 """
@@ -355,6 +401,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
     try:
         answer, session_id, answer_source = await wait_for_hermes_answer(request_id, wait_seconds)
+        if local_fallback_enabled() and is_unusable_hermes_answer(answer):
+            fallback = deterministic_local_answer(req.message.strip())
+            if fallback:
+                answer = fallback
+                answer_source = "local_deterministic_fallback_after_unusable_hermes"
     except TimeoutError as exc:
         fallback = deterministic_local_answer(req.message.strip()) if local_fallback_enabled() else None
         if not fallback:
