@@ -8,13 +8,41 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="hero">
-        <p class="eyebrow">PoC2</p>
-        <h1>GSCM PSI 자연어 조회</h1>
-        <p>
-          간단한 채팅 UI에서 질문을 입력하면 <strong>FastAPI</strong>가
-          <strong>Hermes Webhook</strong>으로 전달하고, Hermes Agent의 답변을 다시 받아 출력합니다.
-        </p>
+      <section class="top-grid" aria-label="PSI PoC 소개와 예시 질문">
+        <section class="hero-panel">
+          <p class="eyebrow"><span class="dot"></span> PSI Natural Language PoC</p>
+          <h1>GSCM PSI Chatbot</h1>
+          <p class="hero-copy">
+            GSCM PSI Excel 데이터를 DuckDB long-form 데이터마트로 변환한 뒤,
+            자연어 질문으로 지역/법인/모델/월/분기 別 FP 매출, DP, RTF, 숏,
+            셀아웃, WOS, 유통재고를 조회하는 PoC 데모
+          </p>
+          <div class="stats" aria-label="데이터마트 기준 정보">
+            <div class="stat-card">
+              <strong>W23_pre</strong>
+              <span>기준 플랜</span>
+            </div>
+            <div class="stat-card">
+              <strong>2.2M+</strong>
+              <span>long-form rows</span>
+            </div>
+            <div class="stat-card">
+              <strong>937</strong>
+              <span>source columns</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="example-panel" aria-label="예시 질문">
+          <h2>예시 질문</h2>
+          <div class="example-list">
+            <button data-example="3분기 Short가 가장 큰 지역 Top 5 보여줘">3분기 Short가 가장 큰 지역 Top 5 보여줘</button>
+            <button data-example="9월 WOS가 13 이상인 법인을 알려줘">9월 WOS가 13 이상인 법인을 알려줘</button>
+            <button data-example="1분기 매출 상위 10개 지역 보여줘">1분기 매출 상위 10개 지역 보여줘</button>
+            <button data-example="2분기 Sell-Out 상위 5개 지역">2분기 Sell-Out 상위 5개 지역</button>
+            <button data-example="2분기 SEROM s26F 셀아웃 wos 알려줘">2분기 SEROM s26F 셀아웃 WOS 알려줘</button>
+          </div>
+        </section>
       </section>
 
       <section class="chat-card" aria-label="채팅 UI">
@@ -23,7 +51,7 @@
             <div class="avatar">H</div>
             <div class="bubble">
               안녕하세요. PSI 데이터를 자연어로 물어보세요.<br />
-              예: <button class="link-button" data-example="유럽 2분기 플래그십 숏현황 알려줘">유럽 2분기 플래그십 숏현황 알려줘</button>
+              예: <button class="link-button" data-example="3분기 Short가 가장 큰 지역 Top 5 보여줘">3분기 Short가 가장 큰 지역 Top 5 보여줘</button>
             </div>
           </article>
         </div>
@@ -33,21 +61,11 @@
             id="messageInput"
             name="message"
             autocomplete="off"
-            placeholder="예: 유럽 2분기 플래그십 숏현황 알려줘"
+            placeholder="예: 3분기 Short가 가장 큰 지역 Top 5 보여줘"
             required
           />
           <button id="sendButton" type="submit">전송</button>
         </form>
-      </section>
-
-      <section class="examples">
-        <h2>데모 질문</h2>
-        <div class="chips">
-          <button data-example="유럽 2분기 플래그십 숏현황 알려줘">유럽 2분기 플래그십 숏현황</button>
-          <button data-example="북미 2분기 숏이 몇대야?">북미 2분기 Short</button>
-          <button data-example="유럽 법인별 2분기 숏 현황 알려줘">유럽 법인별 2분기 Short</button>
-          <button data-example="2분기 사업부 FP(매출) 알려줘">2분기 사업부 FP(매출)</button>
-        </div>
       </section>
     </main>
 
