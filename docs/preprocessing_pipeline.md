@@ -141,10 +141,54 @@ uv run --with duckdb python3 scripts/query_psi.py \
 9. BANGLADESH: 13
 ```
 
+## FastAPI API
+
+DuckDB 데이터마트 생성 후 API 서버를 실행한다.
+
+```bash
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
+```
+
+주요 endpoint:
+
+- `GET /health`: 서버 상태 확인
+- `GET /schema`: 사용 가능한 period/metric 및 row count 조회
+- `POST /query`: 자연어 PSI 질문 실행
+
+질의 예시:
+
+```bash
+curl -X POST http://127.0.0.1:8765/query \
+  -H 'Content-Type: application/json' \
+  --data '{"question":"3분기 Short가 가장 큰 지역 Top 5 보여줘"}'
+```
+
+응답 예시:
+
+```json
+{
+  "question": "3분기 Short가 가장 큰 지역 Top 5 보여줘",
+  "intent": {
+    "period": "3분기",
+    "metric": "Short",
+    "limit": 5,
+    "threshold": null,
+    "order": "desc"
+  },
+  "rows": [
+    {"region_entity": "Latin America", "value": 3668584.0},
+    {"region_entity": "Middle East", "value": 2349454.0},
+    {"region_entity": "Europe", "value": 2280929.0},
+    {"region_entity": "Africa", "value": 1378379.0},
+    {"region_entity": "SELA", "value": 1271879.0}
+  ]
+}
+```
+
 ## 테스트
 
 ```bash
-python3 -m unittest discover -s tests -v
+uv run --extra test python3 -m unittest discover -s tests -v
 ```
 
 현재 테스트 범위:
