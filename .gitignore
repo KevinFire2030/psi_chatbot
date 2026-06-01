@@ -16,3 +16,8 @@ Thumbs.db
 *.log
 dist/
 build/
+
+# Generated local data marts
+# DuckDB output is reproducible from sample_psi/sample_psi.xlsx and can exceed GitHub's 100MB file limit.
+data/*.duckdb
+data/*.duckdb.wal
