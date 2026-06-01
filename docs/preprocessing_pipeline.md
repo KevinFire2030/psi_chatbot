@@ -151,9 +151,19 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
 
 주요 endpoint:
 
+- `GET /`: 간단한 앱 UI
 - `GET /health`: 서버 상태 확인
 - `GET /schema`: 사용 가능한 period/metric 및 row count 조회
 - `POST /query`: 자연어 PSI 질문 실행
+
+브라우저에서 `http://127.0.0.1:8765/`를 열면 단일 페이지 앱 UI가 표시된다.
+
+UI 기능:
+
+- 자연어 질문 입력
+- 예시 질문 버튼
+- 질문 해석 intent 패널
+- 조회 결과 테이블
 
 질의 예시:
 

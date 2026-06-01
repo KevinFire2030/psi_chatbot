@@ -8,6 +8,7 @@ GSCM PSI data를 자연어로 조회하기 위한 PoC 프로젝트입니다.
 2. Excel 리포트형 wide data → long-form DuckDB 데이터마트 변환
 3. Rule-based 한국어 자연어 질의 CLI
 4. FastAPI 기반 `/query`, `/schema`, `/health` API
+5. FastAPI 루트(`/`)에서 제공되는 간단한 앱 UI
 
 ## 빠른 시작
 
@@ -40,11 +41,25 @@ uv run python3 scripts/query_psi.py \
   --db data/psi.duckdb
 ```
 
-### 3. API 서버 실행
+### 3. 앱 UI/API 서버 실행
 
 ```bash
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
+
+브라우저에서 앱 UI를 연다.
+
+```text
+http://127.0.0.1:8765/
+```
+
+UI 기능:
+
+- 자연어 질문 입력창
+- 예시 질문 버튼
+- 질문 해석 intent 표시
+- 지역/법인별 결과 테이블 표시
+- `/query` API 호출 기반 조회
 
 Health check:
 
@@ -102,6 +117,7 @@ uv run --extra test python3 -m unittest discover -s tests -v
 - 한국어 자연어 query intent parsing
 - DuckDB query service
 - FastAPI `/query` endpoint
+- FastAPI 루트(`/`) 앱 UI HTML 서빙
 
 ## 문서
 
@@ -112,6 +128,7 @@ uv run --extra test python3 -m unittest discover -s tests -v
 
 1. LLM 기반 NL→SQL 변환 추가
 2. API 응답에 SQL/필터 설명 및 단위 변환 추가
-3. Streamlit 또는 React/Electron UI 추가
-4. 지역/법인/모델 hierarchy 정규화
-5. 질의 결과 chart/table rendering
+3. UI에 차트/다운로드/질의 히스토리 추가
+4. Streamlit 또는 React/Electron UI로 확장
+5. 지역/법인/모델 hierarchy 정규화
+6. 질의 결과 chart/table rendering 고도화

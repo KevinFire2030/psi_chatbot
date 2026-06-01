@@ -2,11 +2,13 @@ from __future__ import annotations
 
 try:
     from fastapi import Depends, FastAPI, HTTPException
+    from fastapi.responses import HTMLResponse
     from pydantic import BaseModel, Field
 except ImportError:  # pragma: no cover - dependency guard for environments without FastAPI
-    Depends = FastAPI = HTTPException = BaseModel = Field = None  # type: ignore[assignment]
+    Depends = FastAPI = HTTPException = BaseModel = Field = HTMLResponse = None  # type: ignore[assignment]
 
 from app.psi_service import PsiQueryService
+from app.ui import render_homepage
 
 
 if BaseModel is not None:
@@ -31,6 +33,10 @@ def create_app(service: PsiQueryService | None = None):
 
     def get_service() -> PsiQueryService:
         return query_service
+
+    @app.get("/", response_class=HTMLResponse)
+    def home() -> str:
+        return render_homepage()
 
     @app.get("/health")
     def health() -> dict[str, str]:

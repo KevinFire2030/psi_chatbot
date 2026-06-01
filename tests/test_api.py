@@ -56,6 +56,21 @@ class TestFastApiApp(unittest.TestCase):
             self.assertEqual(payload["intent"]["metric"], "WOS(EDI+FOTA)")
             self.assertEqual(payload["rows"][0]["region_entity"], "SEM")
 
+    def test_homepage_serves_chat_ui(self):
+        with tempfile.NamedTemporaryFile(suffix=".duckdb") as tmp:
+            service = PsiQueryService(tmp.name)
+            service.initialize_schema_for_test()
+            app = create_app(service=service)
+            client = TestClient(app)
+
+            response = client.get("/")
+
+            self.assertEqual(response.status_code, 200)
+            html = response.text
+            self.assertIn("GSCM PSI Chatbot", html)
+            self.assertIn("id=\"questionInput\"", html)
+            self.assertIn("/query", html)
+
 
 if __name__ == "__main__":
     unittest.main()
