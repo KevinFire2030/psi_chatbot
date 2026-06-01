@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GSCM PSI PoC2 — Hermes Webhook Chat</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <p class="eyebrow">PoC2</p>
+        <h1>GSCM PSI 자연어 조회</h1>
+        <p>
+          간단한 채팅 UI에서 질문을 입력하면 <strong>FastAPI</strong>가
+          <strong>Hermes Webhook</strong>으로 전달하고, Hermes Agent의 답변을 다시 받아 출력합니다.
+        </p>
+      </section>
+
+      <section class="chat-card" aria-label="채팅 UI">
+        <div id="messages" class="messages">
+          <article class="message bot">
+            <div class="avatar">H</div>
+            <div class="bubble">
+              안녕하세요. PSI 데이터를 자연어로 물어보세요.<br />
+              예: <button class="link-button" data-example="유럽 2분기 플래그십 숏현황 알려줘">유럽 2분기 플래그십 숏현황 알려줘</button>
+            </div>
+          </article>
+        </div>
+
+        <form id="chatForm" class="composer">
+          <input
+            id="messageInput"
+            name="message"
+            autocomplete="off"
+            placeholder="예: 유럽 2분기 플래그십 숏현황 알려줘"
+            required
+          />
+          <button id="sendButton" type="submit">전송</button>
+        </form>
+      </section>
+
+      <section class="examples">
+        <h2>데모 질문</h2>
+        <div class="chips">
+          <button data-example="유럽 2분기 플래그십 숏현황 알려줘">유럽 2분기 플래그십 숏현황</button>
+          <button data-example="북미 2분기 숏이 몇대야?">북미 2분기 Short</button>
+          <button data-example="유럽 법인별 2분기 숏 현황 알려줘">유럽 법인별 2분기 Short</button>
+          <button data-example="2분기 사업부 FP(매출) 알려줘">2분기 사업부 FP(매출)</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
