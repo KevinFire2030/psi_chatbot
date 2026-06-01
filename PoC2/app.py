@@ -354,6 +354,46 @@ def deterministic_local_answer(question: str) -> str | None:
             lines.append(f"법인별 합계는 {fmt_num(sum(v for _, v in rows))}대입니다.")
             return "\n".join(lines)
 
+        if ("sea" in q or "sea법인" in q) and "2분기" in q and "s26u" in q and "dp" in q:
+            dp_row = con.execute(
+                """
+                SELECT value, psi_model_26, sales_model_26
+                FROM psi_long
+                WHERE period='2분기' AND region_entity='SEA'
+                  AND model_code='S26U' AND metric='Demand'
+                  AND comparison='' AND sub_header='DP (FP)'
+                LIMIT 1
+                """
+            ).fetchone()
+            w12_row = con.execute(
+                """
+                SELECT value
+                FROM psi_long
+                WHERE period='2분기' AND region_entity='SEA'
+                  AND model_code='S26U' AND metric='W12Demand'
+                  AND comparison='' AND sub_header='W12 DP (FP)'
+                LIMIT 1
+                """
+            ).fetchone()
+            if not dp_row:
+                return None
+            dp_value, psi_model, sales_model = dp_row
+            lines = [
+                "SEA법인 2분기 S26U DP입니다.",
+                "",
+                f"- 법인/지역: SEA",
+                f"- 기간: 2분기",
+                f"- 모델: S26U / {psi_model}",
+                "- 지표: Demand",
+                "- 세부항목: DP (FP)",
+                "",
+                f"결과: {fmt_num(dp_value)}대",
+            ]
+            if w12_row:
+                lines.extend(["", f"참고로 같은 조건의 W12 DP는 {fmt_num(w12_row[0])}대입니다."])
+            lines.extend(["", f"즉, SEA법인 2분기 S26U DP는 {fmt_num(dp_value)}대입니다."])
+            return "\n".join(lines)
+
         if "사업부" in q and ("25년" in q or "2025" in q) and "매출" in q:
             rows = con.execute(
                 """

@@ -116,6 +116,15 @@ class Poc2BackendTests(unittest.TestCase):
         self.assertIn("71,266,203,000", answer)
         self.assertIn("4분기/연간 컬럼", answer)
 
+    def test_sea_s26u_q2_dp_fallback_query(self):
+        answer = deterministic_local_answer("SEA법인 2분기 S26U DP 알려줘")
+        self.assertIsNotNone(answer)
+        assert answer is not None
+        self.assertIn("SEA법인 2분기 S26U DP", answer)
+        self.assertIn("1,111,098대", answer)
+        self.assertIn("W12 DP", answer)
+        self.assertIn("1,195,921대", answer)
+
 
 if __name__ == "__main__":
     unittest.main()
