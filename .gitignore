@@ -1,0 +1,18 @@
+# Python / local env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs/build
+*.log
+dist/
+build/
