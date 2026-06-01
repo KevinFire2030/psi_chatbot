@@ -21,7 +21,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import duckdb
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,13 +33,13 @@ STATIC_DIR = APP_DIR / "static"
 DEFAULT_HERMES_HOME = Path.home() / ".hermes"
 DEFAULT_WEBHOOK_URL = "http://127.0.0.1:8644/webhooks/gscm-psi-chat"
 DEFAULT_ROUTE = "gscm-psi-chat"
-DEFAULT_TIMEOUT_SECONDS = 180
+DEFAULT_TIMEOUT_SECONDS = 1800
 POLL_INTERVAL_SECONDS = 1.5
 
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
-    timeout_seconds: int = Field(default=DEFAULT_TIMEOUT_SECONDS, ge=10, le=300)
+    timeout_seconds: int = Field(default=DEFAULT_TIMEOUT_SECONDS, ge=10, le=1800)
 
 
 class ChatResponse(BaseModel):
@@ -174,38 +173,6 @@ def latest_final_assistant_message(conn: sqlite3.Connection, session_id: str) ->
     return final
 
 
-def is_unusable_hermes_answer(answer: str) -> bool:
-    """Return True when Hermes replied but clearly did not answer the PSI query.
-
-    Webhook agent sessions can occasionally run without terminal/file tools or hit
-    provider limits. In those cases the final text is an apology/error, not a data
-    answer, so PoC2 should fall through to its deterministic DuckDB demo path.
-    """
-
-    normalized = answer.lower()
-    failure_markers = [
-        "터미널/파일 조회 도구가 제공되지",
-        "terminal 도구가 제공되지",
-        "terminal/db 실행 도구가 제공되지",
-        "db 실행 도구가 제공되지",
-        "duckdb를 실제 조회할 수",
-        "duckdb를 직접 조회할 수",
-        "duckdb를 조회할",
-        "터미널 실행 도구가 연결되어 있지",
-        "psi_long 실제 조회",
-        "실제 조회 결과를 확인할 수 없습니다",
-        "실제 조회를 수행할 수 없습니다",
-        "실제 조회할 수 없습니다",
-        "조회 도구가 제공되지",
-        "다시 요청해 주시면",
-        "api call failed",
-        "rate limited",
-        "usage limit",
-        "no final assistant response",
-    ]
-    return any(marker in normalized for marker in failure_markers)
-
-
 async def wait_for_hermes_answer(request_id: str, timeout_seconds: int) -> tuple[str, str | None, str]:
     db_path = state_db_path()
     deadline = time.monotonic() + timeout_seconds
@@ -233,246 +200,6 @@ async def wait_for_hermes_answer(request_id: str, timeout_seconds: int) -> tuple
         "Hermes accepted the webhook but no final assistant response was found "
         f"within {timeout_seconds}s. request_id={request_id}, session_id={last_session_id}"
     )
-
-
-def local_fallback_enabled() -> bool:
-    return os.getenv("POC2_ENABLE_LOCAL_FALLBACK", "true").strip().lower() in {"1", "true", "yes", "on"}
-
-
-def fallback_after_seconds(timeout_seconds: int) -> int:
-    configured = int(os.getenv("POC2_FALLBACK_AFTER_SECONDS", "45"))
-    return max(5, min(timeout_seconds, configured))
-
-
-def psi_db_path() -> Path:
-    return Path(os.getenv("PSI_DUCKDB_PATH", str(PROJECT_ROOT / "data" / "psi.duckdb"))).expanduser()
-
-
-def fmt_num(value: float | int) -> str:
-    return f"{int(value):,}"
-
-
-def deterministic_local_answer(question: str) -> str | None:
-    """Small deterministic fallback for demo questions when Hermes is rate-limited.
-
-    The primary path remains Hermes webhook. This fallback keeps the visual demo
-    usable if the LLM provider returns 429 during a customer-facing rehearsal.
-    """
-
-    db = psi_db_path()
-    if not db.exists():
-        return None
-
-    q = question.replace(" ", "").lower()
-    con = duckdb.connect(str(db), read_only=True)
-    try:
-        if ("3분기" in q or "3q" in q) and ("top5" in q or "top 5" in question.lower() or "상위5" in q or "가장큰지역" in q) and ("숏" in q or "short" in q):
-            rows = con.execute(
-                """
-                SELECT region_entity, CAST(value AS BIGINT) AS short_value
-                FROM psi_long
-                WHERE period='3분기' AND metric='Short' AND comparison=''
-                  AND psi_model_26='Total' AND region_entity <> 'Total'
-                ORDER BY value DESC
-                LIMIT 5
-                """
-            ).fetchall()
-            lines = ["3분기 Short가 가장 큰 지역 Top 5입니다.", ""]
-            lines.extend(f"{i}. {region}: {fmt_num(value)}대" for i, (region, value) in enumerate(rows, 1))
-            return "\n".join(lines)
-
-        if "유럽" in q and "플래그십" in q and ("숏" in q or "short" in q):
-            total = con.execute(
-                """
-                SELECT value
-                FROM psi_long
-                WHERE period='2분기' AND metric='Short' AND comparison=''
-                  AND region_entity='Europe' AND psi_model_26='Flagship'
-                """
-            ).fetchone()[0]
-            subs = con.execute(
-                """
-                SELECT region_entity, CAST(value AS BIGINT) AS short_value
-                FROM psi_long
-                WHERE period='2분기' AND metric='Short' AND comparison=''
-                  AND psi_model_26='Flagship'
-                  AND excel_row_number BETWEEN 245 AND 937
-                ORDER BY value DESC
-                """
-            ).fetchall()
-            model_rows = con.execute(
-                """
-                SELECT psi_model_26, model_code, CAST(value AS BIGINT) AS short_value
-                FROM psi_long
-                WHERE period='2분기' AND metric='Short' AND comparison=''
-                  AND region_entity='Europe'
-                  AND excel_row_number BETWEEN 202 AND 225
-                  AND value <> 0
-                ORDER BY excel_row_number
-                """
-            ).fetchall()
-            lines = [
-                "유럽 2분기 플래그십 Short 현황입니다.",
-                "",
-                "유럽 전체",
-                f"- Europe / Flagship Short: {fmt_num(total)}대",
-                "",
-                "법인별 현황 — Short 높은 순",
-            ]
-            lines.extend(f"{i}. {entity}: {fmt_num(value)}대" for i, (entity, value) in enumerate(subs, 1))
-            lines.extend(["", f"법인별 합계도 {fmt_num(sum(v for _, v in subs))}대로 Europe Flagship Total과 일치합니다."])
-            lines.extend(["", "유럽 전체 기준 주요 플래그십 모델군"])
-            for model, code, value in model_rows:
-                label = f"{model}" + (f" / {code}" if code else "")
-                lines.append(f"- {label}: {fmt_num(value)}대")
-            return "\n".join(lines)
-
-        if "북미" in q and ("숏" in q or "short" in q):
-            value = con.execute(
-                """
-                SELECT value FROM psi_long
-                WHERE period='2분기' AND metric='Short' AND comparison=''
-                  AND psi_model_26='Total' AND region_entity='North America'
-                """
-            ).fetchone()[0]
-            return f"북미의 2분기 Short는 {fmt_num(value)}대입니다."
-
-        if "유럽" in q and "법인" in q and ("숏" in q or "short" in q):
-            rows = con.execute(
-                """
-                SELECT region_entity, CAST(value AS BIGINT) AS short_value
-                FROM psi_long
-                WHERE period='2분기' AND metric='Short' AND comparison=''
-                  AND psi_model_26='Total'
-                  AND excel_row_number BETWEEN 245 AND 937
-                ORDER BY value DESC
-                """
-            ).fetchall()
-            lines = ["유럽 법인별 2분기 Short 현황입니다.", ""]
-            lines.extend(f"{i}. {entity}: {fmt_num(value)}대" for i, (entity, value) in enumerate(rows, 1))
-            lines.append("")
-            lines.append(f"법인별 합계는 {fmt_num(sum(v for _, v in rows))}대입니다.")
-            return "\n".join(lines)
-
-        if ("sea" in q or "sea법인" in q) and "2분기" in q and "s26u" in q and "dp" in q:
-            dp_row = con.execute(
-                """
-                SELECT value, psi_model_26, sales_model_26
-                FROM psi_long
-                WHERE period='2분기' AND region_entity='SEA'
-                  AND model_code='S26U' AND metric='Demand'
-                  AND comparison='' AND sub_header='DP (FP)'
-                LIMIT 1
-                """
-            ).fetchone()
-            w12_row = con.execute(
-                """
-                SELECT value
-                FROM psi_long
-                WHERE period='2분기' AND region_entity='SEA'
-                  AND model_code='S26U' AND metric='W12Demand'
-                  AND comparison='' AND sub_header='W12 DP (FP)'
-                LIMIT 1
-                """
-            ).fetchone()
-            if not dp_row:
-                return None
-            dp_value, psi_model, sales_model = dp_row
-            lines = [
-                "SEA법인 2분기 S26U DP입니다.",
-                "",
-                f"- 법인/지역: SEA",
-                f"- 기간: 2분기",
-                f"- 모델: S26U / {psi_model}",
-                "- 지표: Demand",
-                "- 세부항목: DP (FP)",
-                "",
-                f"결과: {fmt_num(dp_value)}대",
-            ]
-            if w12_row:
-                lines.extend(["", f"참고로 같은 조건의 W12 DP는 {fmt_num(w12_row[0])}대입니다."])
-            lines.extend(["", f"즉, SEA법인 2분기 S26U DP는 {fmt_num(dp_value)}대입니다."])
-            return "\n".join(lines)
-
-        if "사업부" in q and ("25년" in q or "2025" in q) and "매출" in q:
-            rows = con.execute(
-                """
-                SELECT period, CAST(value AS BIGINT) AS revenue_value
-                FROM psi_long
-                WHERE period IN ('1분기', '2분기', '3분기')
-                  AND metric='매출' AND comparison='' AND sub_header='FP (매출)'
-                  AND business_unit='사업부' AND region_entity='Total'
-                  AND psi_model_26='Total'
-                ORDER BY CASE period
-                    WHEN '1분기' THEN 1
-                    WHEN '2분기' THEN 2
-                    WHEN '3분기' THEN 3
-                    ELSE 99
-                END
-                """
-            ).fetchall()
-            if not rows:
-                return None
-            total = sum(value for _, value in rows)
-            lines = [
-                "조회 기준으로는 현재 DB에 연간/25년 전체 컬럼은 없고, 사용 가능한 기간은 1분기, 2분기, 3분기까지입니다.",
-                "",
-                "그래서 사업부 25년 매출 = 1~3분기 누계 기준으로 보면:",
-                "",
-                "사업부 25년 매출",
-                "",
-            ]
-            lines.extend(f"- {period}: {fmt_num(value)}" for period, value in rows)
-            lines.extend(
-                [
-                    "",
-                    "1~3분기 누계",
-                    "",
-                    fmt_num(total),
-                    "",
-                    f"즉, 사업부 25년 매출은 현재 데이터 기준 {fmt_num(total)}입니다.",
-                    "단, 이는 DB에 존재하는 1~3분기 FP(매출) 합산 기준입니다. 4분기/연간 컬럼은 현재 psi_long 테이블에서 확인되지 않았습니다.",
-                ]
-            )
-            return "\n".join(lines)
-
-        if "사업부" in q and ("채널숏" in q or "채널short" in q or "channelshort" in q or "short-ch" in q or "constraint" in q):
-            value = con.execute(
-                """
-                SELECT value FROM psi_long
-                WHERE period='2분기' AND metric='Short-Ch_Constraint' AND comparison=''
-                  AND business_unit='사업부' AND region_entity='Total' AND psi_model_26='Total'
-                """
-            ).fetchone()[0]
-            wow = con.execute(
-                """
-                SELECT value FROM psi_long
-                WHERE period='2분기' AND metric='Short-Ch_Constraint' AND comparison='전주比'
-                  AND business_unit='사업부' AND region_entity='Total' AND psi_model_26='Total'
-                """
-            ).fetchone()[0]
-            return "\n".join(
-                [
-                    "사업부 2분기 채널 Short 현황입니다.",
-                    "",
-                    f"- 2분기 Short-Ch_Constraint: {fmt_num(value)}대",
-                    f"- 전주비: {fmt_num(wow)}대",
-                ]
-            )
-
-        if "사업부" in q and "fp" in q and "매출" in q:
-            value = con.execute(
-                """
-                SELECT value FROM psi_long
-                WHERE period='2분기' AND metric='매출' AND comparison=''
-                  AND sub_header='FP (매출)' AND business_unit='사업부'
-                  AND region_entity='Total' AND psi_model_26='Total'
-                """
-            ).fetchone()[0]
-            return f"2분기 사업부 FP(매출)는 {fmt_num(value)}입니다."
-    finally:
-        con.close()
-    return None
 
 
 @app.get("/")
@@ -503,24 +230,10 @@ async def chat(req: ChatRequest) -> ChatResponse:
     if webhook_status.get("status") not in {"accepted", "delivered"}:
         raise HTTPException(status_code=502, detail=f"Unexpected Hermes webhook response: {webhook_status}")
 
-    wait_seconds = req.timeout_seconds
-    if local_fallback_enabled():
-        wait_seconds = fallback_after_seconds(req.timeout_seconds)
-
     try:
-        answer, session_id, answer_source = await wait_for_hermes_answer(request_id, wait_seconds)
-        if local_fallback_enabled() and is_unusable_hermes_answer(answer):
-            fallback = deterministic_local_answer(req.message.strip())
-            if fallback:
-                answer = fallback
-                answer_source = "local_deterministic_fallback_after_unusable_hermes"
+        answer, session_id, answer_source = await wait_for_hermes_answer(request_id, req.timeout_seconds)
     except TimeoutError as exc:
-        fallback = deterministic_local_answer(req.message.strip()) if local_fallback_enabled() else None
-        if not fallback:
-            raise HTTPException(status_code=504, detail=str(exc)) from exc
-        answer = fallback
-        session_id = None
-        answer_source = "local_deterministic_fallback_after_webhook"
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
 
     return ChatResponse(
         request_id=request_id,

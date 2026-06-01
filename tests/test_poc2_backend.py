@@ -6,10 +6,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import PoC2.app as poc2_app
 from PoC2.app import (
-    deterministic_local_answer,
+    DEFAULT_TIMEOUT_SECONDS,
     find_session_for_request,
-    is_unusable_hermes_answer,
     latest_final_assistant_message,
     sign_body,
 )
@@ -69,61 +69,18 @@ class Poc2BackendTests(unittest.TestCase):
             self.assertEqual(latest_final_assistant_message(conn, "s1"), "최종 답변입니다")
             conn.close()
 
-    def test_detects_unusable_hermes_tool_apology(self):
-        self.assertTrue(
-            is_unusable_hermes_answer(
-                "죄송합니다. 현재 세션에는 터미널/파일 조회 도구가 제공되지 않아 실제 조회할 수 없습니다."
-            )
-        )
-        self.assertTrue(
-            is_unusable_hermes_answer(
-                "현재 세션에는 DuckDB를 실제 조회할 수 있는 터미널/DB 실행 도구가 제공되지 않아 psi_long 테이블 조회를 수행할 수 없습니다."
-            )
-        )
-        self.assertTrue(
-            is_unusable_hermes_answer(
-                "현재 세션에서 DuckDB를 조회할 terminal 도구가 제공되지 않아 psi_long 실제 조회를 수행할 수 없습니다."
-            )
-        )
-        self.assertTrue(
-            is_unusable_hermes_answer(
-                "죄송합니다. 현재 세션에는 DuckDB를 직접 조회할 수 있는 터미널 실행 도구가 연결되어 있지 않아, `psi_long` 실제 조회 결과를 확인할 수 없습니다."
-            )
-        )
-        self.assertFalse(is_unusable_hermes_answer("사업부 2분기 채널 Short는 1,185,642대입니다."))
+    def test_no_local_duckdb_fallback_is_present(self):
+        self.assertFalse(hasattr(poc2_app, "deterministic_local_answer"))
+        self.assertFalse(hasattr(poc2_app, "local_fallback_enabled"))
+        self.assertFalse(hasattr(poc2_app, "fallback_after_seconds"))
+        self.assertFalse(hasattr(poc2_app, "is_unusable_hermes_answer"))
 
-    def test_channel_short_fallback_query(self):
-        answer = deterministic_local_answer("사업부 2분기 채널숏 알려줘")
-        self.assertIsNotNone(answer)
-        assert answer is not None
-        self.assertIn("Short-Ch_Constraint: 1,185,642대", answer)
-        self.assertIn("전주비: -285,032대", answer)
-
-    def test_q3_short_top5_fallback_query(self):
-        answer = deterministic_local_answer("3분기 Short가 가장 큰 지역 Top 5 보여줘")
-        self.assertIsNotNone(answer)
-        assert answer is not None
-        self.assertIn("1. Latin America: 3,668,584대", answer)
-        self.assertIn("5. SELA: 1,271,879대", answer)
-
-    def test_business_unit_2025_revenue_fallback_query(self):
-        answer = deterministic_local_answer("사업부 25년 매출 얼마야?")
-        self.assertIsNotNone(answer)
-        assert answer is not None
-        self.assertIn("1분기: 25,631,577,000", answer)
-        self.assertIn("2분기: 22,285,346,000", answer)
-        self.assertIn("3분기: 23,349,280,000", answer)
-        self.assertIn("71,266,203,000", answer)
-        self.assertIn("4분기/연간 컬럼", answer)
-
-    def test_sea_s26u_q2_dp_fallback_query(self):
-        answer = deterministic_local_answer("SEA법인 2분기 S26U DP 알려줘")
-        self.assertIsNotNone(answer)
-        assert answer is not None
-        self.assertIn("SEA법인 2분기 S26U DP", answer)
-        self.assertIn("1,111,098대", answer)
-        self.assertIn("W12 DP", answer)
-        self.assertIn("1,195,921대", answer)
+    def test_default_timeout_waits_for_gateway_agent(self):
+        self.assertEqual(DEFAULT_TIMEOUT_SECONDS, 1800)
+        timeout_field = poc2_app.ChatRequest.model_fields["timeout_seconds"]
+        metadata = {type(item).__name__: item for item in timeout_field.metadata}
+        self.assertEqual(metadata["Ge"].ge, 10)
+        self.assertEqual(metadata["Le"].le, 1800)
 
 
 if __name__ == "__main__":

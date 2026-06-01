@@ -48,7 +48,7 @@ async function sendMessage(text) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, timeout_seconds: 180 }),
+      body: JSON.stringify({ message, timeout_seconds: 1800 }),
     });
     const data = await res.json();
     loading.remove();
