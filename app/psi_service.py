@@ -1,40 +1,65 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import os
 from typing import Any
 
-from scripts.query_psi import QueryIntent, parse_query
+from app.query_planner import QueryPlan, QueryPlanner
 
 
 @dataclass(frozen=True)
 class PsiResultRow:
-    region_entity: str
-    value: float
+    region_entity: str | None = None
+    value: float | None = None
+    psi_model_26: str | None = None
+    delta: float | None = None
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        if not self.extra:
+            data.pop("extra")
+        return {key: value for key, value in data.items() if value is not None}
 
 
 @dataclass(frozen=True)
 class PsiQueryResult:
     question: str
-    intent: QueryIntent
+    intent: dict[str, Any]
     rows: list[PsiResultRow]
+    sql: str
+    explanation: str
+    params: list[Any]
+    planner: str = "deterministic_llm_ready_planner"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "question": self.question,
-            "intent": asdict(self.intent),
-            "rows": [asdict(row) for row in self.rows],
+            "intent": self.intent,
+            "sql": self.sql,
+            "params": self.params,
+            "explanation": self.explanation,
+            "planner": self.planner,
+            "rows": [row.to_dict() for row in self.rows],
         }
 
 
 class PsiQueryService:
-    def __init__(self, db_path: str = "data/psi.duckdb") -> None:
+    def __init__(self, db_path: str = "data/psi.duckdb", planner: QueryPlanner | None = None) -> None:
         self.db_path = db_path
+        self.planner = planner or QueryPlanner()
 
     def query(self, question: str) -> PsiQueryResult:
-        intent = parse_query(question)
-        rows = self._run_intent(intent)
-        return PsiQueryResult(question=question, intent=intent, rows=rows)
+        plan = self.planner.plan(question)
+        rows = self._run_plan(plan)
+        return PsiQueryResult(
+            question=question,
+            intent=plan.intent,
+            rows=rows,
+            sql=plan.sql,
+            params=plan.params,
+            explanation=plan.explanation,
+        )
 
     def schema_summary(self) -> dict[str, Any]:
         try:
@@ -48,34 +73,26 @@ class PsiQueryService:
             row_count = con.execute("SELECT COUNT(*) FROM psi_long").fetchone()[0]
         return {"periods": periods, "metrics": metrics, "psi_long_rows": row_count}
 
-    def _run_intent(self, intent: QueryIntent) -> list[PsiResultRow]:
+    def _run_plan(self, plan: QueryPlan) -> list[PsiResultRow]:
         try:
             import duckdb
         except ImportError as exc:
             raise RuntimeError("duckdb package is required") from exc
 
-        where = [
-            "period = ?",
-            "metric = ?",
-            "comparison = ''",
-            "psi_model_26 = 'Total'",
-            "region_entity <> 'Total'",
-        ]
-        params: list[object] = [intent.period, intent.metric]
-        if intent.threshold is not None:
-            where.append("value >= ?")
-            params.append(intent.threshold)
-        order_sql = "ASC" if intent.order == "asc" else "DESC"
-        params.append(intent.limit)
-        sql = f"""
-            SELECT region_entity, value
-            FROM psi_long
-            WHERE {' AND '.join(where)}
-            ORDER BY value {order_sql}
-            LIMIT ?
-        """
         with duckdb.connect(self.db_path, read_only=True) as con:
-            return [PsiResultRow(region_entity=row[0], value=float(row[1])) for row in con.execute(sql, params).fetchall()]
+            raw_rows = con.execute(plan.sql, plan.params).fetchall()
+
+        if plan.result_shape == "model_delta":
+            return [
+                PsiResultRow(
+                    psi_model_26=row[0],
+                    value=float(row[2]),
+                    delta=float(row[3]),
+                    extra={"base_value": float(row[1]), "compare_value": float(row[2])},
+                )
+                for row in raw_rows
+            ]
+        return [PsiResultRow(region_entity=row[0], value=float(row[1])) for row in raw_rows]
 
     def initialize_schema_for_test(self) -> None:
         try:
@@ -108,7 +125,14 @@ class PsiQueryService:
                 """
             )
 
-    def insert_test_row(self, region_entity: str, period: str, metric: str, value: float) -> None:
+    def insert_test_row(
+        self,
+        region_entity: str,
+        period: str,
+        metric: str,
+        value: float,
+        psi_model_26: str = "Total",
+    ) -> None:
         try:
             import duckdb
         except ImportError as exc:
@@ -116,7 +140,7 @@ class PsiQueryService:
 
         with duckdb.connect(self.db_path) as con:
             con.execute(
-                "INSERT INTO psi_long VALUES (?, ?, ?, '', 'Total', ?)",
-                [region_entity, period, metric, value],
+                "INSERT INTO psi_long VALUES (?, ?, ?, '', ?, ?)",
+                [region_entity, period, metric, psi_model_26, value],
             )
             con.execute("INSERT INTO psi_column_metadata VALUES (?, ?)", [period, metric])

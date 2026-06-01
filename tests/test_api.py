@@ -28,10 +28,28 @@ class TestPsiQueryService(unittest.TestCase):
 
             result = service.query("3분기 Short 상위 2개 지역")
 
-            self.assertEqual(result.intent.period, "3분기")
-            self.assertEqual(result.intent.metric, "Short")
+            self.assertEqual(result.intent["period"], "3분기")
+            self.assertEqual(result.intent["metric"], "Short")
             self.assertEqual(result.rows[0].region_entity, "Latin America")
             self.assertEqual(result.rows[0].value, 200.0)
+            self.assertIn("SELECT", result.sql)
+            self.assertTrue(result.explanation)
+
+    def test_service_executes_delta_plan(self):
+        with tempfile.NamedTemporaryFile(suffix=".duckdb") as tmp:
+            service = PsiQueryService(tmp.name)
+            service.initialize_schema_for_test()
+            service.insert_test_row("Europe", "2분기", "Short", 10.0, psi_model_26="A")
+            service.insert_test_row("Europe", "3분기", "Short", 15.0, psi_model_26="A")
+            service.insert_test_row("Europe", "2분기", "Short", 20.0, psi_model_26="B")
+            service.insert_test_row("Europe", "3분기", "Short", 18.0, psi_model_26="B")
+
+            result = service.query("Europe에서 2분기 대비 3분기 Short가 늘어난 모델 보여줘")
+
+            self.assertEqual(result.intent["kind"], "period_delta_by_model")
+            self.assertEqual(result.rows[0].psi_model_26, "A")
+            self.assertEqual(result.rows[0].delta, 5.0)
+            self.assertIn("base_value", result.rows[0].extra)
 
 
 class TestFastApiApp(unittest.TestCase):

@@ -154,7 +154,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
 - `GET /`: 간단한 앱 UI
 - `GET /health`: 서버 상태 확인
 - `GET /schema`: 사용 가능한 period/metric 및 row count 조회
-- `POST /query`: 자연어 PSI 질문 실행
+- `POST /query`: 자연어 PSI 질문 실행. 응답에 `intent`, `sql`, bind `params`, 한국어 `explanation`, `rows` 포함
 
 브라우저에서 `http://127.0.0.1:8765/`를 열면 단일 페이지 앱 UI가 표시된다.
 
@@ -194,6 +194,24 @@ curl -X POST http://127.0.0.1:8765/query \
   ]
 }
 ```
+
+### 기간 비교형 질문 예시
+
+```bash
+curl -X POST http://127.0.0.1:8765/query \
+  -H 'Content-Type: application/json' \
+  --data '{"question":"Europe에서 2분기 대비 3분기 Short가 늘어난 모델 보여줘"}'
+```
+
+이 질문은 `period_delta_by_model` plan으로 해석된다.
+
+- region_entity: `Europe`
+- base_period: `2분기`
+- compare_period: `3분기`
+- metric: `Short`
+- SQL shape: base period와 compare period를 모델별 집계 후 delta 계산
+
+응답의 `rows`에는 모델별 `base_value`, `compare_value`, `delta`가 포함된다.
 
 ## 테스트
 

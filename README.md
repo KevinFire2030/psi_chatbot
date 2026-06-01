@@ -9,6 +9,7 @@ GSCM PSI data를 자연어로 조회하기 위한 PoC 프로젝트입니다.
 3. Rule-based 한국어 자연어 질의 CLI
 4. FastAPI 기반 `/query`, `/schema`, `/health` API
 5. FastAPI 루트(`/`)에서 제공되는 간단한 앱 UI
+6. LLM-ready NL→SQL/Query planner와 SQL/해석 과정 포함 API 응답
 
 ## 빠른 시작
 
@@ -67,6 +68,8 @@ Health check:
 curl http://127.0.0.1:8765/health
 ```
 
+응답에는 `intent`, 생성된 `sql`, bind `params`, 한국어 `explanation`, `rows`가 포함된다.
+
 자연어 질의:
 
 ```bash
@@ -87,6 +90,9 @@ curl -X POST http://127.0.0.1:8765/query \
     "threshold": null,
     "order": "desc"
   },
+  "sql": "SELECT region_entity, value FROM psi_long ... LIMIT ?",
+  "params": ["3분기", "Short", 5],
+  "explanation": "3분기 기간의 Short 지표를 지역/법인 Total 기준으로 desc 정렬해 5개 조회합니다.",
   "rows": [
     {"region_entity": "Latin America", "value": 3668584.0},
     {"region_entity": "Middle East", "value": 2349454.0},
@@ -101,6 +107,41 @@ Schema summary:
 
 ```bash
 curl http://127.0.0.1:8765/schema
+```
+
+### 4. 비교형 Query planner 예시
+
+현재 planner는 LLM으로 교체 가능한 구조의 deterministic planner입니다. 단순 ranking 질문 외에 기간 비교형 질문을 SQL plan으로 변환합니다.
+
+```bash
+curl -X POST http://127.0.0.1:8765/query \
+  -H 'Content-Type: application/json' \
+  --data '{"question":"Europe에서 2분기 대비 3분기 Short가 늘어난 모델 보여줘"}'
+```
+
+응답에는 모델별 `base_value`, `compare_value`, `delta`와 함께 생성 SQL/해석 과정이 포함됩니다.
+
+예시 결과:
+
+```json
+{
+  "intent": {
+    "kind": "period_delta_by_model",
+    "region_entity": "Europe",
+    "base_period": "2분기",
+    "compare_period": "3분기",
+    "metric": "Short"
+  },
+  "explanation": "Europe 지역에서 2분기와 3분기의 Short를 모델별로 비교하고, 증가분(delta)이 큰 순서로 10개를 조회합니다.",
+  "rows": [
+    {
+      "psi_model_26": "Smart",
+      "value": 2280929.0,
+      "delta": 1742570.0,
+      "extra": {"base_value": 538359.0, "compare_value": 2280929.0}
+    }
+  ]
+}
 ```
 
 ## 테스트
@@ -118,6 +159,8 @@ uv run --extra test python3 -m unittest discover -s tests -v
 - DuckDB query service
 - FastAPI `/query` endpoint
 - FastAPI 루트(`/`) 앱 UI HTML 서빙
+- Query planner의 SQL/params/explanation 생성
+- 기간 비교형 모델별 delta 조회
 
 ## 문서
 
@@ -126,8 +169,8 @@ uv run --extra test python3 -m unittest discover -s tests -v
 
 ## 다음 단계 후보
 
-1. LLM 기반 NL→SQL 변환 추가
-2. API 응답에 SQL/필터 설명 및 단위 변환 추가
+1. 실제 LLM 기반 NL→SQL planner 연결
+2. API 응답에 단위 변환 추가
 3. UI에 차트/다운로드/질의 히스토리 추가
 4. Streamlit 또는 React/Electron UI로 확장
 5. 지역/법인/모델 hierarchy 정규화

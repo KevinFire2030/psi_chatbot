@@ -151,14 +151,17 @@ def render_homepage() -> str:
       return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(value);
     }
 
-    function renderIntent(intent) {
+    function renderIntent(payload) {
+      const intent = payload.intent;
+      const lines = Object.entries(intent)
+        .map(([key, value]) => `<b>${key}</b><span>${value ?? '-'}</span>`)
+        .join('');
       intentPanel.className = 'kv';
       intentPanel.innerHTML = `
-        <b>period</b><span>${intent.period}</span>
-        <b>metric</b><span>${intent.metric}</span>
-        <b>limit</b><span>${intent.limit}</span>
-        <b>threshold</b><span>${intent.threshold ?? '-'}</span>
-        <b>order</b><span>${intent.order}</span>
+        ${lines}
+        <b>planner</b><span>${payload.planner ?? '-'}</span>
+        <b>설명</b><span>${payload.explanation ?? '-'}</span>
+        <b>SQL</b><span><code>${(payload.sql ?? '').replaceAll('<', '&lt;')}</code></span>
       `;
     }
 
@@ -168,7 +171,20 @@ def render_homepage() -> str:
         resultPanel.textContent = '조건에 맞는 결과가 없습니다.';
         return;
       }
+      const first = rows[0];
+      const isModelDelta = Object.prototype.hasOwnProperty.call(first, 'psi_model_26');
       resultPanel.className = '';
+      if (isModelDelta) {
+        resultPanel.innerHTML = `
+          <table>
+            <thead><tr><th>Rank</th><th>모델</th><th>Base</th><th>Compare</th><th>Delta</th></tr></thead>
+            <tbody>
+              ${rows.map((row, index) => `<tr><td>${index + 1}</td><td>${row.psi_model_26}</td><td>${formatValue(row.extra?.base_value ?? 0)}</td><td>${formatValue(row.extra?.compare_value ?? row.value)}</td><td>${formatValue(row.delta)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+        return;
+      }
       resultPanel.innerHTML = `
         <table>
           <thead><tr><th>Rank</th><th>지역/법인</th><th>Value</th></tr></thead>
@@ -196,7 +212,7 @@ def render_homepage() -> str:
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.detail || '조회 실패');
-        renderIntent(payload.intent);
+        renderIntent(payload);
         renderRows(payload.rows);
       } catch (error) {
         intentPanel.className = 'error';
