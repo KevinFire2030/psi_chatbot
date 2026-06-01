@@ -81,8 +81,6 @@ Response:
 
 Hermes Webhook은 비동기로 `202 accepted`를 반환합니다. 따라서 PoC2 FastAPI는 payload에 `request_id`를 넣고, Hermes state DB에서 해당 `request_id`가 포함된 webhook session을 찾아 최종 assistant 메시지를 polling합니다.
 
-LLM provider rate limit 등으로 Hermes 최종 응답이 시간 내 저장되지 않으면, 데모가 멈추지 않도록 기본적으로 알려진 PSI 질문군은 DuckDB를 직접 조회하는 deterministic fallback을 사용합니다. 이 경우 API 응답의 `answer_source`가 `local_deterministic_fallback_after_webhook`으로 표시됩니다. 끄려면:
+PoC2는 로컬 deterministic DuckDB fallback을 사용하지 않습니다. 브라우저 데모는 Telegram/Hermes와 동일하게 webhook agent의 최종 응답을 기다리며, 응답 출처는 `answer_source: "hermes_webhook"`으로 표시됩니다.
 
-```bash
-export POC2_ENABLE_LOCAL_FALLBACK=false
-```
+기본 timeout은 긴 PSI 질의와 agent tool 실행을 고려해 1800초입니다.
