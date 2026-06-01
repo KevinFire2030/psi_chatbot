@@ -106,6 +106,16 @@ class Poc2BackendTests(unittest.TestCase):
         self.assertIn("1. Latin America: 3,668,584대", answer)
         self.assertIn("5. SELA: 1,271,879대", answer)
 
+    def test_business_unit_2025_revenue_fallback_query(self):
+        answer = deterministic_local_answer("사업부 25년 매출 얼마야?")
+        self.assertIsNotNone(answer)
+        assert answer is not None
+        self.assertIn("1분기: 25,631,577,000", answer)
+        self.assertIn("2분기: 22,285,346,000", answer)
+        self.assertIn("3분기: 23,349,280,000", answer)
+        self.assertIn("71,266,203,000", answer)
+        self.assertIn("4분기/연간 컬럼", answer)
+
 
 if __name__ == "__main__":
     unittest.main()

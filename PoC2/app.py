@@ -354,6 +354,48 @@ def deterministic_local_answer(question: str) -> str | None:
             lines.append(f"법인별 합계는 {fmt_num(sum(v for _, v in rows))}대입니다.")
             return "\n".join(lines)
 
+        if "사업부" in q and ("25년" in q or "2025" in q) and "매출" in q:
+            rows = con.execute(
+                """
+                SELECT period, CAST(value AS BIGINT) AS revenue_value
+                FROM psi_long
+                WHERE period IN ('1분기', '2분기', '3분기')
+                  AND metric='매출' AND comparison='' AND sub_header='FP (매출)'
+                  AND business_unit='사업부' AND region_entity='Total'
+                  AND psi_model_26='Total'
+                ORDER BY CASE period
+                    WHEN '1분기' THEN 1
+                    WHEN '2분기' THEN 2
+                    WHEN '3분기' THEN 3
+                    ELSE 99
+                END
+                """
+            ).fetchall()
+            if not rows:
+                return None
+            total = sum(value for _, value in rows)
+            lines = [
+                "조회 기준으로는 현재 DB에 연간/25년 전체 컬럼은 없고, 사용 가능한 기간은 1분기, 2분기, 3분기까지입니다.",
+                "",
+                "그래서 사업부 25년 매출 = 1~3분기 누계 기준으로 보면:",
+                "",
+                "사업부 25년 매출",
+                "",
+            ]
+            lines.extend(f"- {period}: {fmt_num(value)}" for period, value in rows)
+            lines.extend(
+                [
+                    "",
+                    "1~3분기 누계",
+                    "",
+                    fmt_num(total),
+                    "",
+                    f"즉, 사업부 25년 매출은 현재 데이터 기준 {fmt_num(total)}입니다.",
+                    "단, 이는 DB에 존재하는 1~3분기 FP(매출) 합산 기준입니다. 4분기/연간 컬럼은 현재 psi_long 테이블에서 확인되지 않았습니다.",
+                ]
+            )
+            return "\n".join(lines)
+
         if "사업부" in q and ("채널숏" in q or "채널short" in q or "channelshort" in q or "short-ch" in q or "constraint" in q):
             value = con.execute(
                 """
