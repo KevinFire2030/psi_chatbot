@@ -4,8 +4,8 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from app.main import create_app
-from app.psi_service import PsiQueryService
+from PoC1.app.main import create_app
+from PoC1.app.psi_service import PsiQueryService
 
 
 class TestPsiQueryService(unittest.TestCase):

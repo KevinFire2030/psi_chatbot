@@ -18,9 +18,11 @@ dist/
 build/
 
 # Generated local data marts
-# DuckDB output is reproducible from sample_psi/sample_psi.xlsx and can exceed GitHub's 100MB file limit.
+# DuckDB output is reproducible from PoC1/sample_psi/sample_psi.xlsx and can exceed GitHub's 100MB file limit.
 data/*.duckdb
 data/*.duckdb.wal
+PoC1/data/*.duckdb
+PoC1/data/*.duckdb.wal
 
 # Android local build state
 android/**/.gradle/

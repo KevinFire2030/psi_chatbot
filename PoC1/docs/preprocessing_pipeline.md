@@ -1,29 +1,29 @@
 # PSI preprocessing pipeline
 
-이 문서는 `sample_psi/sample_psi.xlsx`를 자연어 조회에 적합한 long-form DuckDB 데이터마트로 변환하는 방법을 설명한다.
+이 문서는 `PoC1/sample_psi/sample_psi.xlsx`를 자연어 조회에 적합한 long-form DuckDB 데이터마트로 변환하는 방법을 설명한다.
 
 ## 산출물
 
 로컬 생성 파일:
 
-- `data/psi.duckdb`
+- `PoC1/data/psi.duckdb`
 
-주의: `data/psi.duckdb`는 현재 샘플 기준 약 146MB로 GitHub 단일 파일 제한 100MB를 초과할 수 있다. 따라서 Git에는 커밋하지 않고, 원본 Excel과 스크립트로 재생성한다.
+주의: `PoC1/data/psi.duckdb`는 현재 샘플 기준 약 146MB로 GitHub 단일 파일 제한 100MB를 초과할 수 있다. 따라서 Git에는 커밋하지 않고, 원본 Excel과 스크립트로 재생성한다.
 
 ## 실행 방법
 
 프로젝트 루트에서 실행한다.
 
 ```bash
-uv run --with duckdb python3 scripts/preprocess_psi.py \
-  --input sample_psi/sample_psi.xlsx \
-  --output data/psi.duckdb
+uv run --with duckdb python3 PoC1/scripts/preprocess_psi.py \
+  --input PoC1/sample_psi/sample_psi.xlsx \
+  --output PoC1/data/psi.duckdb
 ```
 
 실행 결과 예시:
 
 ```text
-Created data/psi.duckdb
+Created PoC1/data/psi.duckdb
 sheet_name=4)법인·모델별 현황 (분기_월)
 source_rows=3051
 source_columns=937
@@ -82,7 +82,7 @@ long_rows=2217562
 ```bash
 uv run --with duckdb python3 - <<'PY'
 import duckdb
-con = duckdb.connect('data/psi.duckdb', read_only=True)
+con = duckdb.connect('PoC1/data/psi.duckdb', read_only=True)
 print(con.execute('select count(*) from psi_long').fetchall())
 print(con.execute('select count(*) from psi_column_metadata').fetchall())
 print(con.execute('select * from psi_load_info').fetchall())
@@ -94,7 +94,7 @@ PY
 ```text
 [(2217562,)]
 [(854,)]
-[('sample_psi/sample_psi.xlsx', '4)법인·모델별 현황 (분기_월)', 3051, 937, 15)]
+[('PoC1/sample_psi/sample_psi.xlsx', '4)법인·모델별 현황 (분기_월)', 3051, 937, 15)]
 ```
 
 ## 자연어 PoC CLI
@@ -102,9 +102,9 @@ PY
 초기 PoC용으로 rule-based 자연어 질의 CLI를 추가했다.
 
 ```bash
-uv run --with duckdb python3 scripts/query_psi.py \
+uv run --with duckdb python3 PoC1/scripts/query_psi.py \
   '3분기 Short가 가장 큰 지역 Top 5 보여줘' \
-  --db data/psi.duckdb
+  --db PoC1/data/psi.duckdb
 ```
 
 실행 결과 예시:
@@ -122,9 +122,9 @@ uv run --with duckdb python3 scripts/query_psi.py \
 다른 예시:
 
 ```bash
-uv run --with duckdb python3 scripts/query_psi.py \
+uv run --with duckdb python3 PoC1/scripts/query_psi.py \
   '9월 WOS가 13 이상인 법인을 알려줘' \
-  --db data/psi.duckdb
+  --db PoC1/data/psi.duckdb
 ```
 
 결과 예시:
@@ -146,7 +146,7 @@ uv run --with duckdb python3 scripts/query_psi.py \
 DuckDB 데이터마트 생성 후 API 서버를 실행한다.
 
 ```bash
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
+uv run uvicorn PoC1.app.main:app --host 127.0.0.1 --port 8765
 ```
 
 주요 endpoint:
@@ -228,7 +228,7 @@ uv run --extra test python3 -m unittest discover -s tests -v
 
 ## 다음 확장 방향
 
-1. `scripts/query_psi.py`의 rule-based parser를 LLM 기반 NL→SQL로 교체 또는 보강
+1. `PoC1/scripts/query_psi.py`의 rule-based parser를 LLM 기반 NL→SQL로 교체 또는 보강
 2. FastAPI endpoint 추가
    - `/query`: 자연어 질문 → SQL → 결과 JSON
    - `/schema`: metric dictionary/schema metadata 반환

@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.query_psi import parse_query
+from PoC1.scripts.query_psi import parse_query
 
 
 class TestQueryPsi(unittest.TestCase):

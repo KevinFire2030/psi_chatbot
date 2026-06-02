@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, field
 import os
 from typing import Any
 
-from app.query_planner import QueryPlan, QueryPlanner
+from PoC1.app.query_planner import QueryPlan, QueryPlanner
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,7 @@ class PsiQueryResult:
 
 
 class PsiQueryService:
-    def __init__(self, db_path: str = "data/psi.duckdb", planner: QueryPlanner | None = None) -> None:
+    def __init__(self, db_path: str = "PoC1/data/psi.duckdb", planner: QueryPlanner | None = None) -> None:
         self.db_path = db_path
         self.planner = planner or QueryPlanner()
 

@@ -260,7 +260,7 @@ def create_duckdb(input_xlsx: str, output_db: str, sheet: SheetData) -> dict[str
     try:
         import duckdb
     except ImportError as exc:
-        raise SystemExit("duckdb package is required. Run: uv run --with duckdb python3 scripts/preprocess_psi.py") from exc
+        raise SystemExit("duckdb package is required. Run: uv run --with duckdb python3 PoC1/scripts/preprocess_psi.py") from exc
 
     if os.path.exists(output_db):
         os.remove(output_db)
@@ -377,8 +377,8 @@ def create_duckdb(input_xlsx: str, output_db: str, sheet: SheetData) -> dict[str
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Convert sample PSI XLSX to long-form DuckDB")
-    parser.add_argument("--input", default="sample_psi/sample_psi.xlsx", help="Source PSI .xlsx path")
-    parser.add_argument("--output", default="data/psi.duckdb", help="Output DuckDB path")
+    parser.add_argument("--input", default="PoC1/sample_psi/sample_psi.xlsx", help="Source PSI .xlsx path")
+    parser.add_argument("--output", default="PoC1/data/psi.duckdb", help="Output DuckDB path")
     args = parser.parse_args(argv)
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tiny rule-based natural-language PSI query CLI on top of data/psi.duckdb.
+"""Tiny rule-based natural-language PSI query CLI on top of PoC1/data/psi.duckdb.
 
 This is intentionally small for the PoC bootstrap. It proves the long-form data
 mart can answer Korean business questions before adding an LLM/API/UI layer.
@@ -74,7 +74,7 @@ def run_query(db_path: str, intent: QueryIntent) -> list[tuple[str, float]]:
     try:
         import duckdb
     except ImportError as exc:
-        raise SystemExit("duckdb package is required. Run: uv run --with duckdb python3 scripts/query_psi.py ...") from exc
+        raise SystemExit("duckdb package is required. Run: uv run --with duckdb python3 PoC1/scripts/query_psi.py ...") from exc
 
     where = [
         "period = ?",
@@ -103,7 +103,7 @@ def run_query(db_path: str, intent: QueryIntent) -> list[tuple[str, float]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Query PSI DuckDB with a simple Korean natural-language question")
     parser.add_argument("question", help="예: '3분기 Short 상위 5개 지역 보여줘'")
-    parser.add_argument("--db", default="data/psi.duckdb")
+    parser.add_argument("--db", default="PoC1/data/psi.duckdb")
     args = parser.parse_args()
 
     intent = parse_query(args.question)

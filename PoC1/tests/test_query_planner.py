@@ -1,6 +1,6 @@
 import unittest
 
-from app.query_planner import QueryPlanner
+from PoC1.app.query_planner import QueryPlanner
 
 
 class TestQueryPlanner(unittest.TestCase):

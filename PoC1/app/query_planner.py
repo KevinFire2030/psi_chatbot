@@ -4,7 +4,7 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from scripts.query_psi import QueryIntent, parse_query
+from PoC1.scripts.query_psi import QueryIntent, parse_query
 
 PERIOD_RE = re.compile(r"(1분기|2분기|3분기|상반기|[1-9]월)", re.IGNORECASE)
 LIMIT_RE = re.compile(r"top\s*(\d+)|상위\s*(\d+)", re.IGNORECASE)

@@ -10,7 +10,7 @@ GSCM PSI Excel 데이터를 DuckDB long-form 데이터마트로 변환하고, �
 
 ## 현재 구현 범위
 
-1. `sample_psi/sample_psi.xlsx` 분석 및 문서화
+1. `PoC1/sample_psi/sample_psi.xlsx` 분석 및 문서화
 2. Excel 리포트형 wide data → long-form DuckDB 데이터마트 변환
 3. PSI 조회용 DuckDB `psi_long` 테이블 생성
 4. PoC2 웹 채팅 UI 제공
@@ -18,7 +18,7 @@ GSCM PSI Excel 데이터를 DuckDB long-form 데이터마트로 변환하고, �
 6. Hermes Agent 최종 응답을 state DB polling으로 UI에 반환
 7. Android WebView APK wrapper 제공
 
-기존 `app.main`의 deterministic FastAPI `/query` API는 초기 PoC용 코드로 남아 있지만, 현재 데모/운영 기준은 `PoC2.app:app`입니다.
+기존 `PoC1.app.main`의 deterministic FastAPI `/query` API와 관련 스크립트/문서는 `PoC1/` 아래로 이동했습니다. 현재 데모/운영 기준은 `PoC2.app:app`입니다.
 
 ## 아키텍처
 
@@ -44,9 +44,12 @@ PoC2/static/index.html         # PoC2 채팅 UI
 PoC2/static/app.js             # /api/chat 호출 및 응답 렌더링
 PoC2/static/style.css          # UI styling
 PoC2/README.md                 # PoC2 세부 실행/웹훅 메모
-scripts/preprocess_psi.py      # Excel -> DuckDB 전처리
-scripts/query_psi.py           # DuckDB 직접 질의용 CLI
-app/                          # 초기 deterministic API/Query planner 코드
+PoC1/scripts/preprocess_psi.py # PoC1 Excel -> DuckDB 전처리
+PoC1/scripts/query_psi.py      # PoC1 DuckDB 직접 질의용 CLI
+PoC1/app/                      # PoC1 deterministic API/Query planner 코드
+PoC1/docs/                     # PoC1 분석/전처리 문서
+PoC1/tests/                    # PoC1 테스트
+PoC1/sample_psi/               # PoC1 샘플 Excel
 android/psi-webview/           # Android WebView wrapper 프로젝트
 artifacts/android/             # 생성된 APK 산출물
 ```
@@ -54,15 +57,15 @@ artifacts/android/             # 생성된 APK 산출물
 ## 데이터마트 생성
 
 ```bash
-uv run python3 scripts/preprocess_psi.py \
-  --input sample_psi/sample_psi.xlsx \
-  --output data/psi.duckdb
+uv run python3 PoC1/scripts/preprocess_psi.py \
+  --input PoC1/sample_psi/sample_psi.xlsx \
+  --output PoC1/data/psi.duckdb
 ```
 
 생성 결과 예시:
 
 ```text
-Created data/psi.duckdb
+Created PoC1/data/psi.duckdb
 sheet_name=4)법인·모델별 현황 (분기_월)
 source_rows=3051
 source_columns=937
@@ -70,7 +73,7 @@ metric_columns=854
 long_rows=2217562
 ```
 
-`data/psi.duckdb`는 용량이 커서 GitHub에는 커밋하지 않습니다. 필요 시 위 명령으로 재생성합니다.
+`PoC1/data/psi.duckdb`는 용량이 커서 GitHub에는 커밋하지 않습니다. 필요 시 위 명령으로 재생성합니다. 현재 PoC2 webhook 데모는 운영 편의를 위해 기존 runtime DB인 `data/psi.duckdb`를 참조합니다.
 
 ## PoC2 서버 실행
 
@@ -235,15 +238,15 @@ artifacts/android/gscm-psi-chatbot-webview-debug.apk
 초기 DuckDB 직접 질의 CLI는 계속 사용할 수 있습니다.
 
 ```bash
-uv run python3 scripts/query_psi.py \
+uv run python3 PoC1/scripts/query_psi.py \
   '3분기 Short가 가장 큰 지역 Top 5 보여줘' \
-  --db data/psi.duckdb
+  --db PoC1/data/psi.duckdb
 ```
 
 초기 FastAPI deterministic API를 실행하려면:
 
 ```bash
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
+uv run uvicorn PoC1.app.main:app --host 127.0.0.1 --port 8765
 ```
 
 단, 현재 웹 데모와 Android APK는 `PoC2.app:app` / port `8766` 기준입니다.
@@ -251,6 +254,7 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
 ## 테스트
 
 ```bash
+uv run --extra test python3 -m unittest discover -s PoC1/tests -v
 uv run --extra test python3 -m unittest discover -s tests -v
 ```
 
@@ -271,8 +275,8 @@ uv run --extra test python3 -m unittest discover -s tests -v
 
 ## 문서
 
-- `docs/sample_psi_analysis.md`: 샘플 PSI Excel 분석 결과
-- `docs/preprocessing_pipeline.md`: 전처리 파이프라인 및 DuckDB schema 설명
+- `PoC1/docs/sample_psi_analysis.md`: 샘플 PSI Excel 분석 결과
+- `PoC1/docs/preprocessing_pipeline.md`: 전처리 파이프라인 및 DuckDB schema 설명
 - `docs/poc2-current-work-summary.md`: PoC2 현재 아키텍처/운영/검증 정리
 - `PoC2/README.md`: PoC2 backend/webhook 상세 메모
 - `android/psi-webview/README.md`: Android WebView APK 빌드 메모

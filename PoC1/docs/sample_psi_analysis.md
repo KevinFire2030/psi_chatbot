@@ -2,8 +2,8 @@
 
 분석 대상 파일:
 
-- Windows 경로: `E:\ax\PRJs\psi_chatbot\sample_psi\sample_psi.xlsx`
-- WSL 경로: `/mnt/e/ax/PRJs/psi_chatbot/sample_psi/sample_psi.xlsx`
+- Windows 경로: `E:\ax\PRJs\psi_chatbot\PoC1\sample_psi\sample_psi.xlsx`
+- WSL 경로: `/mnt/e/ax/PRJs/psi_chatbot/PoC1/sample_psi/sample_psi.xlsx`
 - 파일 크기: 약 33.9MB
 
 분석 일자: 2026-06-01

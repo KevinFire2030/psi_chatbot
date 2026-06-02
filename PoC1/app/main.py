@@ -7,8 +7,8 @@ try:
 except ImportError:  # pragma: no cover - dependency guard for environments without FastAPI
     Depends = FastAPI = HTTPException = BaseModel = Field = HTMLResponse = None  # type: ignore[assignment]
 
-from app.psi_service import PsiQueryService
-from app.ui import render_homepage
+from PoC1.app.psi_service import PsiQueryService
+from PoC1.app.ui import render_homepage
 
 
 if BaseModel is not None:

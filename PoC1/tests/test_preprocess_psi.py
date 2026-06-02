@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.preprocess_psi import (
+from PoC1.scripts.preprocess_psi import (
     col_to_index,
     index_to_col,
     parse_metric_header,
