@@ -278,6 +278,7 @@ uv run --extra test python3 -m unittest discover -s tests -v
 - `PoC1/docs/sample_psi_analysis.md`: 샘플 PSI Excel 분석 결과
 - `PoC1/docs/preprocessing_pipeline.md`: 전처리 파이프라인 및 DuckDB schema 설명
 - `docs/poc2-current-work-summary.md`: PoC2 현재 아키텍처/운영/검증 정리
+- `docs/codex-poc2-rebuild-prompt.md`: 사내 Codex 앱에 그대로 입력할 PoC2 재구현 프롬프트
 - `PoC2/README.md`: PoC2 backend/webhook 상세 메모
 - `android/psi-webview/README.md`: Android WebView APK 빌드 메모
 
