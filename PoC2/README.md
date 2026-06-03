@@ -1,15 +1,18 @@
 # GSCM PSI PoC2 — FastAPI → Hermes Webhook Chat UI
 
-PoC2는 간단한 웹 채팅 UI에서 입력한 PSI 자연어 질문을 FastAPI가 Hermes Webhook으로 전달하고, Hermes Agent가 처리한 최종 답변을 다시 UI에 출력하는 데모입니다.
+PoC2는 간단한 웹 채팅 UI에서 입력한 PSI 자연어 질문을 FastAPI가 처리하는 데모입니다. 명확한 고빈도 질문은 FastAPI가 로컬 DuckDB fast path로 1~3초 내 답하고, 그 외 질문은 기존처럼 Hermes Webhook으로 전달해 Hermes Agent 최종 답변을 UI에 출력합니다.
 
 ```text
 Browser chat UI
   -> FastAPI /api/chat
-  -> Hermes Webhook /webhooks/gscm-psi-chat
+  -> Local DuckDB fast path for known PSI questions
+  -> Hermes Webhook /webhooks/gscm-psi-chat for fallback questions
   -> Hermes Agent tool execution
   -> Hermes state DB polling
   -> Browser chat UI
 ```
+
+Telegram-style updates can call `/api/telegram/fast-path`; the endpoint returns `handled=false` for unknown questions so the caller can fall back to the normal Hermes Telegram agent.
 
 ## 실행
 
@@ -37,15 +40,19 @@ hermes webhook subscribe gscm-psi-chat \
   --prompt "[gscm-psi-chat] request_id={request_id}\n\n당신은 GSCM PSI 데이터 자연어 조회 Agent입니다.\n사용자 질문: {question}\n\n반드시 /mnt/e/ax/PRJs/psi_chatbot 프로젝트의 data/psi.duckdb DuckDB와 psi_long 테이블을 실제 조회해서 답하세요.\n필요하면 terminal에서 uv run python + duckdb를 사용하세요.\n최종 답변은 한국어로, 데모 화면에 바로 보여줄 수 있게 간결하게 작성하세요.\n툴 실행 로그나 내부 설명은 최종 답변에 포함하지 마세요."
 ```
 
-PoC2 backend는 로컬 데모 편의를 위해 `~/.hermes/webhook_subscriptions.json`에서 해당 route의 secret을 자동 탐색합니다. 운영/배포 환경에서는 아래처럼 명시적으로 환경변수를 설정하세요.
+PoC2 backend는 로컬 데모 편의를 위해 `~/.hermes/webhook_subscriptions.json`에서 해당 route의 secret을 자동 탐색합니다. 운영/배포 환경에서는 아래처럼 명시적으로 환경변수를 설정하세요. Fast path는 기본 활성화되어 있으며 `PSI_FAST_PATH_ENABLED=0`으로 끌 수 있습니다.
 
 ```bash
 export HERMES_WEBHOOK_URL=http://127.0.0.1:8644/webhooks/gscm-psi-chat
 export HERMES_WEBHOOK_SECRET=... # Git에 커밋 금지
+export PSI_FAST_PATH_DB=/mnt/e/ax/PRJs/psi_chatbot/data/psi.duckdb
+export PSI_FAST_PATH_ENABLED=1
 ```
 
 ## 데모 질문
 
+- `2분기 SEA 매출 알려줘` *(fast path)*
+- `6월 사업부 WOS 알려줘` *(fast path)*
 - `유럽 2분기 플래그십 숏현황 알려줘`
 - `북미 2분기 숏이 몇대야?`
 - `유럽 법인별 2분기 숏 현황 알려줘`
@@ -81,6 +88,6 @@ Response:
 
 Hermes Webhook은 비동기로 `202 accepted`를 반환합니다. 따라서 PoC2 FastAPI는 payload에 `request_id`를 넣고, Hermes state DB에서 해당 `request_id`가 포함된 webhook session을 찾아 최종 assistant 메시지를 polling합니다.
 
-PoC2는 로컬 deterministic DuckDB fallback을 사용하지 않습니다. 브라우저 데모는 Telegram/Hermes와 동일하게 webhook agent의 최종 응답을 기다리며, 응답 출처는 `answer_source: "hermes_webhook"`으로 표시됩니다.
+PoC2는 `2분기 SEA 매출`, `6월 사업부 WOS`처럼 명확한 고빈도 질문은 로컬 DuckDB fast path로 먼저 처리합니다. Fast path가 매칭되지 않는 질문은 Hermes webhook agent의 최종 응답을 기다리며, 응답 출처는 `answer_source`로 구분합니다.
 
 기본 timeout은 긴 PSI 질의와 agent tool 실행을 고려해 1800초입니다.

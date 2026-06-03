@@ -69,11 +69,12 @@ class Poc2BackendTests(unittest.TestCase):
             self.assertEqual(latest_final_assistant_message(conn, "s1"), "최종 답변입니다")
             conn.close()
 
-    def test_no_local_duckdb_fallback_is_present(self):
+    def test_no_legacy_timeout_fallback_is_present(self):
         self.assertFalse(hasattr(poc2_app, "deterministic_local_answer"))
         self.assertFalse(hasattr(poc2_app, "local_fallback_enabled"))
         self.assertFalse(hasattr(poc2_app, "fallback_after_seconds"))
         self.assertFalse(hasattr(poc2_app, "is_unusable_hermes_answer"))
+        self.assertTrue(hasattr(poc2_app, "try_fast_path_answer"))
 
     def test_default_timeout_waits_for_gateway_agent(self):
         self.assertEqual(DEFAULT_TIMEOUT_SECONDS, 1800)

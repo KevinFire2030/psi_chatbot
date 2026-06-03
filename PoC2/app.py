@@ -26,6 +26,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from PoC2.fast_path import build_fast_path_answer, fast_path_enabled
+
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parent
 STATIC_DIR = APP_DIR / "static"
@@ -52,7 +54,14 @@ class ChatResponse(BaseModel):
     answer_source: str = "hermes_webhook"
 
 
-app = FastAPI(title="GSCM PSI PoC2 Hermes Webhook Chat", version="0.1.0")
+class TelegramFastPathResponse(BaseModel):
+    handled: bool
+    answer: str | None = None
+    answer_source: str | None = None
+    elapsed_seconds: float
+
+
+app = FastAPI(title="GSCM PSI PoC2 Hermes Webhook Chat", version="0.2.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -70,6 +79,20 @@ def webhook_url() -> str:
 
 def webhook_route_from_url(url: str) -> str:
     return url.rstrip("/").split("/")[-1] or DEFAULT_ROUTE
+
+
+def extract_telegram_text(update: dict[str, Any]) -> str | None:
+    """Extract text from a Telegram webhook update-like payload."""
+
+    message = update.get("message") or update.get("edited_message") or {}
+    text = message.get("text") or message.get("caption")
+    return str(text).strip() if text else None
+
+
+def try_fast_path_answer(message: str) -> str | None:
+    if not fast_path_enabled():
+        return None
+    return build_fast_path_answer(message.strip())
 
 
 def discover_webhook_secret(route: str) -> str | None:
@@ -223,10 +246,23 @@ async def health() -> dict[str, Any]:
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     started = time.monotonic()
+    message = req.message.strip()
     request_id = f"poc2-{uuid.uuid4().hex}"
     delivery_id = request_id
 
-    webhook_status = post_to_hermes_webhook(req.message.strip(), request_id, delivery_id)
+    fast_answer = try_fast_path_answer(message)
+    if fast_answer is not None:
+        return ChatResponse(
+            request_id=request_id,
+            delivery_id=delivery_id,
+            webhook_status={"status": "skipped", "reason": "local_duckdb_fast_path"},
+            answer=fast_answer,
+            elapsed_seconds=round(time.monotonic() - started, 2),
+            session_id=None,
+            answer_source="local_duckdb_fast_path",
+        )
+
+    webhook_status = post_to_hermes_webhook(message, request_id, delivery_id)
     if webhook_status.get("status") not in {"accepted", "delivered"}:
         raise HTTPException(status_code=502, detail=f"Unexpected Hermes webhook response: {webhook_status}")
 
@@ -243,4 +279,30 @@ async def chat(req: ChatRequest) -> ChatResponse:
         elapsed_seconds=round(time.monotonic() - started, 2),
         session_id=session_id,
         answer_source=answer_source,
+    )
+
+
+@app.post("/api/telegram/fast-path", response_model=TelegramFastPathResponse)
+async def telegram_fast_path(update: dict[str, Any]) -> TelegramFastPathResponse:
+    """Telegram webhook-compatible deterministic PSI fast path.
+
+    This endpoint does not send Telegram messages by itself; it returns the text
+    that a Telegram webhook adapter or gateway hook can send. Unknown questions
+    return handled=false so callers can fall back to the normal Hermes agent.
+    """
+
+    started = time.monotonic()
+    message = extract_telegram_text(update)
+    if not message:
+        return TelegramFastPathResponse(handled=False, elapsed_seconds=round(time.monotonic() - started, 2))
+
+    answer = try_fast_path_answer(message)
+    if answer is None:
+        return TelegramFastPathResponse(handled=False, elapsed_seconds=round(time.monotonic() - started, 2))
+
+    return TelegramFastPathResponse(
+        handled=True,
+        answer=answer,
+        answer_source="local_duckdb_fast_path",
+        elapsed_seconds=round(time.monotonic() - started, 2),
     )

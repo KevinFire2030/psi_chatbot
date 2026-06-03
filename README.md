@@ -110,7 +110,7 @@ curl http://127.0.0.1:8766/health
 
 ## Hermes Webhook 연동
 
-PoC2 backend는 기본적으로 다음 Hermes webhook으로 질문을 전달합니다.
+PoC2 backend는 기본적으로 다음 Hermes webhook으로 질문을 전달합니다. 단, `2분기 SEA 매출`, `6월 사업부 WOS`처럼 패턴이 명확한 고빈도 질문은 `/api/chat` 진입 시 LLM/webhook을 건너뛰고 로컬 DuckDB fast path로 즉시 답합니다.
 
 ```text
 http://127.0.0.1:8644/webhooks/gscm-psi-chat
@@ -122,6 +122,8 @@ http://127.0.0.1:8644/webhooks/gscm-psi-chat
 export HERMES_WEBHOOK_URL=http://127.0.0.1:8644/webhooks/gscm-psi-chat
 export HERMES_WEBHOOK_SECRET=... # Git에 커밋 금지
 export HERMES_STATE_DB=$HOME/.hermes/state.db
+export PSI_FAST_PATH_ENABLED=1
+export PSI_FAST_PATH_DB=/mnt/e/ax/PRJs/psi_chatbot/data/psi.duckdb
 ```
 
 웹훅 구독이 없으면 한 번 생성합니다.
@@ -160,7 +162,41 @@ Response:
 }
 ```
 
-PoC2는 로컬 deterministic DuckDB fallback을 사용하지 않습니다. 브라우저는 Hermes webhook agent의 최종 응답을 기다립니다.
+PoC2는 명확한 고빈도 질문에는 `answer_source: "local_duckdb_fast_path"`로 1~3초 내 응답하고, fast path가 처리하지 못하는 질문만 Hermes webhook agent의 최종 응답을 기다립니다.
+
+### Fast-path 대상
+
+- `2분기 SEA 매출 알려줘` 같은 `기간 + 법인 + 매출` 질문
+- `6월 사업부 WOS 알려줘` 같은 `월 + 사업부 + WOS` 질문
+
+Fast-path는 `PoC2/fast_path.py`에서 관리하며, 운영 중 비활성화가 필요하면 `PSI_FAST_PATH_ENABLED=0`으로 실행합니다.
+
+### `POST /api/telegram/fast-path`
+
+Telegram webhook update 모양의 JSON을 받아 fast-path 처리 가능 여부와 답변을 반환합니다. 이 endpoint는 직접 Telegram으로 발송하지 않고, gateway/adapter가 fallback 여부를 결정할 수 있게 `handled`를 반환합니다.
+
+Request 예:
+
+```json
+{
+  "message": {
+    "text": "2분기 sea 매출 알려줘",
+    "chat": {"id": -1003674947072},
+    "message_id": 123
+  }
+}
+```
+
+Response 예:
+
+```json
+{
+  "handled": true,
+  "answer": "W23_Pre plan 기준...",
+  "answer_source": "local_duckdb_fast_path",
+  "elapsed_seconds": 0.04
+}
+```
 
 ## 예시 질문
 
